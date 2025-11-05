@@ -1,0 +1,48 @@
+name: Self-Hosted Clone
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to clone'
+        required: false
+        default: 'main'
+      repository:
+        description: 'Repository URL (optional, defaults to current repo)'
+        required: false
+        default: ''
+  push:
+    branches:
+      - main
+      - dev
+
+jobs:
+  clone-code:
+    name: Clone Code on Self-Hosted
+    runs-on: self-hosted
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch || github.ref }}
+          fetch-depth: 0  # 获取完整的 git 历史
+      
+      - name: Display repository info
+        run: |
+          echo "Repository: $(git config --get remote.origin.url)"
+          echo "Branch: $(git branch --show-current)"
+          echo "Commit: $(git rev-parse HEAD)"
+          echo "Working directory: $(pwd)"
+          ls -la
+      
+      - name: Verify code cloned
+        run: |
+          if [ -f "package.json" ]; then
+            echo "✓ Code successfully cloned"
+            echo "Repository contents verified"
+          else
+            echo "✗ Failed to clone code"
+            exit 1
+          fi
+
