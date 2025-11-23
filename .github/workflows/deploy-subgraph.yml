@@ -1,8 +1,15 @@
-name: Self-Hosted Clone
+name: Deploy Subgraph
 
 on:
   workflow_dispatch:
     inputs:
+      action:
+        description: '选择要执行的操作'
+        required: true
+        type: choice
+        options:
+          - clone-code
+          - deploy-subgraph
       branch:
         description: 'Branch to clone'
         required: false
@@ -11,15 +18,12 @@ on:
         description: 'Repository URL (optional, defaults to current repo)'
         required: false
         default: ''
-  push:
-    branches:
-      - main
-      - dev
 
 jobs:
   clone-code:
     name: Clone Code on Self-Hosted
     runs-on: self-hosted
+    if: github.event.inputs.action == 'clone-code'
     
     steps:
       - name: Checkout code
@@ -45,4 +49,34 @@ jobs:
             echo "✗ Failed to clone code"
             exit 1
           fi
+
+  deploy-subgraph:
+    name: Deploy Subgraph
+    runs-on: self-hosted
+    if: github.event.inputs.action == 'deploy-subgraph'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch || github.ref }}
+          fetch-depth: 0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.18.1'
+      
+      - name: Clean and install dependencies
+        run: |
+          echo "清理旧的依赖和缓存..."
+          rm -rf node_modules
+          yarn cache clean
+      
+      - name: Deploy subgraph
+        run: |
+          echo "开始部署 subgraph..."
+          echo "工作目录: $(pwd)"
+          yarn && yarn build --network xlayer-mainnet --subgraph-type v2 --deploy
+          echo "✓ Subgraph 部署完成"
 

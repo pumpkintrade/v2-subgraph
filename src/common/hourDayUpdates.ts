@@ -4,6 +4,7 @@ import { BigDecimal, BigInt, ethereum, store } from '@graphprotocol/graph-ts'
 import {
   Bundle,
   Pair,
+  Pair5MinData,
   PairDayData,
   Token,
   TokenDayData,
@@ -91,6 +92,51 @@ export function updatePairHourData(pair: Pair, event: ethereum.Event): PairHourD
   pairHourData.save()
 
   return pairHourData as PairHourData
+}
+
+export function updatePair5MinData(pair: Pair, event: ethereum.Event): Pair5MinData {
+  let timestamp = event.block.timestamp.toI32()
+  // 5 minutes = 300 seconds
+  let fiveMinIndex = timestamp / 300 // get unique 5-minute period within unix history
+  let fiveMinStartUnix = fiveMinIndex * 300 // rounded to 5-minute boundary
+  
+  // 使用覆盖 ID 技巧：只保留最近 1 小时的数据（12 个 5 分钟间隔）
+  // slotIndex 在 0-11 之间循环，自动覆盖最旧的数据
+  let slotIndex = fiveMinIndex % 12
+  let pair5MinID = event.address.toHexString().concat('-').concat(BigInt.fromI32(slotIndex).toString())
+  
+  let pair5MinData = Pair5MinData.load(pair5MinID)
+  let isNewPeriod = false
+  
+  if (!pair5MinData) {
+    // 创建新的 5 分钟数据
+    pair5MinData = new Pair5MinData(pair5MinID)
+    pair5MinData.periodStartUnix = fiveMinStartUnix
+    pair5MinData.pair = event.address.toHexString()
+    pair5MinData.volumeToken0 = ZERO_BD
+    pair5MinData.volumeToken1 = ZERO_BD
+    pair5MinData.volumeUSD = ZERO_BD
+    pair5MinData.txns = ZERO_BI
+    isNewPeriod = true
+  } else if (pair5MinData.periodStartUnix != fiveMinStartUnix) {
+    // 如果 slot 中的数据是旧的周期，重置为新周期
+    pair5MinData.periodStartUnix = fiveMinStartUnix
+    pair5MinData.volumeToken0 = ZERO_BD
+    pair5MinData.volumeToken1 = ZERO_BD
+    pair5MinData.volumeUSD = ZERO_BD
+    pair5MinData.txns = ZERO_BI
+    isNewPeriod = true
+  }
+
+  // 更新当前周期的数据
+  pair5MinData.totalSupply = pair.totalSupply
+  pair5MinData.reserve0 = pair.reserve0
+  pair5MinData.reserve1 = pair.reserve1
+  pair5MinData.reserveUSD = pair.reserveUSD
+  pair5MinData.txns = pair5MinData.txns.plus(ONE_BI)
+  pair5MinData.save()
+
+  return pair5MinData as Pair5MinData
 }
 
 export function updateTokenDayData(token: Token, event: ethereum.Event): TokenDayData {
