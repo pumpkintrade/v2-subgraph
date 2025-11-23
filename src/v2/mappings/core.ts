@@ -16,6 +16,7 @@ import { FACTORY_ADDRESS } from '../../common/chain'
 import { ADDRESS_ZERO, ALMOST_ZERO_BD, BI_18, ONE_BI, ZERO_BD } from '../../common/constants'
 import { convertTokenToDecimal, createUser } from '../../common/helpers'
 import {
+  updatePair5MinData,
   updatePairDayData,
   updatePairHourData,
   updateTokenDayData,
@@ -324,6 +325,7 @@ export function handleMint(event: Mint): void {
   // update day entities
   updatePairDayData(pair, event)
   updatePairHourData(pair, event)
+  updatePair5MinData(pair, event)
   updateUniswapDayData(event)
   updateTokenDayData(token0 as Token, event)
   updateTokenDayData(token1 as Token, event)
@@ -390,6 +392,7 @@ export function handleBurn(event: Burn): void {
   // update day entities
   updatePairDayData(pair, event)
   updatePairHourData(pair, event)
+  updatePair5MinData(pair, event)
   updateUniswapDayData(event)
   updateTokenDayData(token0 as Token, event)
   updateTokenDayData(token1 as Token, event)
@@ -515,6 +518,7 @@ export function handleSwap(event: Swap): void {
   // update day entities
   let pairDayData = updatePairDayData(pair, event)
   let pairHourData = updatePairHourData(pair, event)
+  let pair5MinData = updatePair5MinData(pair, event)
   let uniswapDayData = updateUniswapDayData(event)
   let token0DayData = updateTokenDayData(token0 as Token, event)
   let token1DayData = updateTokenDayData(token1 as Token, event)
@@ -536,6 +540,12 @@ export function handleSwap(event: Swap): void {
   pairHourData.hourlyVolumeToken1 = pairHourData.hourlyVolumeToken1.plus(amount1Total)
   pairHourData.hourlyVolumeUSD = pairHourData.hourlyVolumeUSD.plus(trackedAmountUSD)
   pairHourData.save()
+
+  // update 5-minute pair data
+  pair5MinData.volumeToken0 = pair5MinData.volumeToken0.plus(amount0Total)
+  pair5MinData.volumeToken1 = pair5MinData.volumeToken1.plus(amount1Total)
+  pair5MinData.volumeUSD = pair5MinData.volumeUSD.plus(trackedAmountUSD)
+  pair5MinData.save()
 
   // swap specific updating for token0
   token0DayData.dailyVolumeToken = token0DayData.dailyVolumeToken.plus(amount0Total)
